@@ -5,7 +5,7 @@
 int main(void)
 {
     std::cout << "INIT" << std::endl;
-    DBSampleQuery();
+    std::cout << DBSampleQuery(1) << std::endl;
     
     return 0;
 }
