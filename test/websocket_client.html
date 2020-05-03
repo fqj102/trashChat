@@ -1,0 +1,49 @@
+<script>
+websocket = new WebSocket("");
+
+
+function establish()
+{
+    form = document.getElementById("connectionform");
+    if (form.status.value == "connect"){
+        websocket = new WebSocket(form.ws_address.value);
+        websocket.onmessage = function(message) 
+        {
+            var node = document.createElement("P");
+            var textnode = document.createTextNode(message.data);
+            node.appendChild(textnode);
+            document.getElementById("messages").appendChild(node);
+        }
+        form.status.value = "disconnect";
+        form.button.value = "disconnect";
+    }
+    else
+    {
+        websocket.close();
+        form.status.value = "connect";
+        form.button.value = "connect";
+    }
+}
+
+function sendMessage()
+{
+    form = document.getElementById("messageform");
+    websocket.send(form.ws_message.value)
+}
+
+</script>
+
+<form onsubmit="sendMessage(); return false;" id="messageform">
+    <input type="text" id="ws_message" value="">
+    <input type="submit" value="send">
+</form>
+
+<form onsubmit="establish(); return false;" id="connectionform">
+    <input type="text" id="ws_address" value="ws://192.168.219.50:1234/socket">
+    <input type="hidden" id="status" value="connect">
+    <input type="submit" id="button" value="connect">
+</form>
+
+<p id="messages">
+<h1> messages from server </h1>
+</p>
