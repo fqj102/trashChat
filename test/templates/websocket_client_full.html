@@ -1,0 +1,195 @@
+<script>
+class Connection
+{
+    constructor() 
+    {
+        this.websocket = null;
+        this.joinedChannel = null;
+        this.joined = false;
+        this.srv_adddress = 'http://192.168.219.50:1234';
+        this.getChannels();
+    }
+    
+    connect(url)
+    {
+        this.websocket = new WebSocket(url);
+        this.websocket.onmessage = function(message) 
+        {
+            var node = document.createElement("P");
+            var textnode = document.createTextNode(message.data);
+            node.appendChild(textnode);
+            document.getElementById("messages").appendChild(node);
+        }
+    }
+    
+    disconnect() 
+    {
+        this.websocket.close()
+    }
+    
+    send(message)
+    {
+        console.log('{"channel": "'+ this.joinedChannel + '", "message": "' + message + '"}');
+        this.websocket.send('{"channel": "'+ this.joinedChannel + '", "message": "' + message + '"}');
+    }
+    
+    getChannels()
+    {
+        var xhr = new XMLHttpRequest();
+        var responseObj = ''; 
+        
+        xhr.withCredentials = true;
+        xhr.open('GET', this.srv_adddress + '/channels/list');
+        xhr.responseType = 'json';
+        xhr.send();
+        xhr.onload = () => {
+           responseObj = xhr.response;
+           console.log(responseObj);
+            var channels = '';
+            for (var i = 0; i < responseObj.channels.length; i++)
+            {
+                channels += '<br /><li><a onclick="joinserver(' + responseObj.channels[i] + ');">' + responseObj.channels[i] + '</a></li>';
+            }
+            document.getElementById("servers").innerHTML = channels;
+        }
+
+    }
+    
+    joinChannel(channelId)
+    {
+        console.log(channelId);
+        if (this.joined)
+        {
+            var xhr = new XMLHttpRequest();
+            var responseObj = '';
+            
+            xhr.withCredentials = true;
+            xhr.open('GET', this.srv_adddress + '/channels/leave/' + this.joinedChannel);
+            xhr.responseType = 'json';
+            xhr.send();
+            xhr.onload = () => {
+               responseObj = xhr.response;
+               console.log(responseObj);
+            }
+            document.getElementById("status").innerHTML = "None";
+        }
+        
+        var xhr = new XMLHttpRequest();
+        
+        xhr.withCredentials = true;
+        xhr.open('GET', this.srv_adddress + '/channels/join/' + channelId);
+        xhr.responseType = 'json';
+        xhr.send();
+        xhr.onload = () => {
+            var responseObj = xhr.response;
+            console.log(responseObj);
+            if (responseObj.result == 'success')
+            {
+                document.getElementById("status").innerHTML = channelId;
+                this.joined = true;
+                this.joinedChannel = channelId;
+            }
+            else 
+            {
+                alert("Error");
+            }
+        }        
+    }
+}
+
+
+connection = new Connection();
+
+function establish()
+{
+    form = document.getElementById("connectionform");
+    if (form.button.value == "connect"){
+        connection.connect(form.ws_address.value);
+        form.button.value = "disconnect";
+    }
+    else
+    {
+        connection.disconnect();
+        form.button.value = "connect";
+    }
+}
+
+function sendMessage()
+{
+    form = document.getElementById("messageform");
+    connection.send(form.ws_message.value)
+}
+
+function joinserver(id)
+{
+    connection.joinChannel(id);
+}
+
+function login()
+{
+    var xhr = new XMLHttpRequest();
+    form = document.getElementById("loginform");
+    
+    xhr.withCredentials = true;
+    xhr.open('POST', connection.srv_adddress + '/login');
+    xhr.responseType = 'json';
+    xhr.send(JSON.stringify({"id": form.user_id.value, "pw": form.user_pw.value}));
+    xhr.onload = () => {
+        var responseObj = xhr.response;
+        console.log(responseObj);
+        if (responseObj.result != 'success')
+        {
+            alert("Error");
+        }
+        else
+        {
+            document.getElementById("login_status").innerHTML = responseObj.message.USERNAME;
+        }
+    }   
+}
+</script>
+
+<!--
+class info : 로그인 상태, 채널 접속 상태
+class message : 채널 목록, 메시지 목록
+class config : 로그인 관련
+-->
+
+<p class="info">
+    <h2> joined server </h2>
+    <h3 id="status"> None </h3>
+    <hr />
+    <h2> login status </h2>
+    <h3 id="login_status"> No </h3>
+    <hr />
+</p>
+
+<h2 class="message"> Channels available :</h2>
+<hr />
+<p id="servers" class="message">
+
+</p>
+
+<form onsubmit="sendMessage(); return false;" id="messageform" class="config">
+    <input type="text" id="ws_message" value="">
+    <input type="submit" value="send">
+    <hr />
+</form>
+
+<form onsubmit="establish(); return false;" id="connectionform" class="config">
+    <input type="text" id="ws_address" value="ws://192.168.219.50:1234/chat">
+    <input type="submit" id="button" value="connect">
+    <hr />
+</form>
+
+<form onsubmit="login(); return false;" id="loginform" class="config">
+    <input type="text" id="user_id" value="test">
+    <input type="password" id="user_pw" value="testpassword">
+    <input type="submit" id="button" value="login">
+    <hr />
+</form>
+
+
+<p id="messages" class="message">
+    <h1> messages from server </h1>
+</p>
