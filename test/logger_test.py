@@ -1,15 +1,9 @@
-from ctypes import cdll, c_char_p
+from ctypes import cdll, c_char_p, c_int
 
 LOGFILE = './log.log'
 
 dll = cdll.LoadLibrary('./logger_test.so')
-dll.readLog.restype = c_char_p
+dll.readLogById.restype = c_char_p
 
-print("BEFORE : ")
-print(dll.readLog(c_char_p(LOGFILE.encode())).decode())
-
-log = input("Log : ")
-dll.writeLog(c_char_p(LOGFILE.encode()), c_char_p(log.encode()))
-
-print("AFTER : ")
-print(dll.readLog(c_char_p(LOGFILE.encode())).decode())
+id = int(input("Read log until: "))
+print(dll.readLogById(c_char_p(LOGFILE.encode()), c_int(id)).decode())
