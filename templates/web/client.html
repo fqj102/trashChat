@@ -1,0 +1,103 @@
+<html>
+    <head>
+	<script src="{{ url_for('static', filename='socket.js') }}"> </script>
+        <style>
+            div{
+                height: auto;
+                overflow: auto;
+            }
+            .horizontal {
+              width: 50%;
+              display: inline-block;
+              float: left;
+            }
+        </style>
+    </head>
+    
+    <body>
+        <script>
+            connection = new Connection();
+            function sendMessage()
+            {
+                form = document.getElementById("messageform");
+                connection.send(form.ws_message.value)
+            }
+
+            function joinserver(id)
+            {
+                connection.joinChannel(id);
+                if (connection.readyState != 1)
+                {
+                    connection.connect('ws://192.168.219.50:1234/chat');
+                }
+            }
+
+            function login()
+            {
+                var xhr = new XMLHttpRequest();
+                form = document.getElementById("loginform");
+                
+                xhr.withCredentials = true;
+                xhr.open('POST', connection.srv_adddress + '/login');
+                xhr.responseType = 'json';
+                xhr.send(JSON.stringify({"id": form.user_id.value, "pw": form.user_pw.value}));
+                xhr.onload = () => {
+                    var responseObj = xhr.response;
+                    console.log(responseObj);
+                    if (responseObj.result != 'success')
+                    {
+                        alert("Error");
+                    }
+                    else
+                    {
+                        document.getElementById("login_status").innerHTML = responseObj.message.USERNAME;
+                    }
+                }   
+            }        
+        </script>
+        <div class="channel">
+            <div class="horizontal">
+                <h2> Joined channel </h2>
+                <p id="status"> None </p>
+            </div>
+            <div class="horizontal">
+                <h2> Channels available :</h2>
+                <p id="servers" class="message"> </p>
+            </div>
+        </div>
+        
+        <br />
+        <hr />
+        
+        <div class="login">
+            <div class="horizontal">
+                <h2> login status </h2>
+                <p id="login_status"> No </p>
+            </div>
+            
+            <div class="horizontal">
+                <form onsubmit="login(); return false;" id="loginform">
+                    <input type="text" id="user_id" value="test">
+                    <input type="password" id="user_pw" value="testpassword">
+                    <input type="submit" id="button" value="login">
+                </form>
+            </div>
+        </div>
+        
+        <hr />
+        
+        <div class="chat">
+            <div id="messages" class="horizontal">
+                <h1> messages from server </h1>
+            </div>
+                
+            <div class="horizontal">
+                <form onsubmit="sendMessage(); return false;" id="messageform">
+                    <input type="text" id="ws_message" value="">
+                    <input type="submit" value="send">
+                </form>
+            </div>
+        </div>
+    </body>
+
+</html>
