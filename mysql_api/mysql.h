@@ -12,14 +12,14 @@
 // DB 접속에 필요한 정보를 정의한다. 
 const char* USERNAME = "test";
 const char* PASSWORD = "testpassword";
-const char* DBNAME = "test";
+const char* DBNAME = "trashchat";
 const char* DBADDR = "tcp://127.0.0.1:3306";
 
 // name mangling을 방지한다. 모든 함수 프로토타입은 중괄호 안에서 실행한다.
 extern "C"
 {
     char* DBSampleQuery (char* id_input, char* pw_input);
-    char* CreatUser(char* user_id, char* user_pw, char* user_username);
+    char* CreateUser(char* user_id, char* user_pw, char* user_username);
     char* Login(char* user_id, char* user_pw);
     char* DeleteUser(int user_uid, char* user_pw);
     int GetRowCount(std::string userid);
@@ -122,7 +122,7 @@ char* DBSampleQuery(char* id_input, char* pw_input)
 }
 
 
-char* CreatUser(char* user_id, char* user_pw, char* user_username)
+char* CreateUser(char* user_id, char* user_pw, char* user_username)
 {
     /*
     CreateUser : 사용자를 생성
@@ -201,7 +201,7 @@ char* Login(char* user_id, char* user_pw)
         prep_stmt -> setString(2, user_pw);
         res = prep_stmt -> executeQuery();
         
-        res -> next()
+        res -> next();
         return_string = return_string + "\"UID\": \"" + res->getString("UID") + "\", "; 
         return_string = return_string + "\"CHANNELS\": \"" + res->getString("CHANNELS") + "\", ";
         return_string = return_string + "\"result\": \"success\"}";
