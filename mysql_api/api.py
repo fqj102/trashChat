@@ -11,34 +11,166 @@ mysql_api/api.py : C++로 작성된 DB API를 사용하는 파이썬 래퍼
 class Database():
     def __init__(self):
         from ctypes import cdll, c_char_p
+        
         self.dll = cdll.LoadLibrary('./mysql_api/mysql.so')
-        self.dll.DBSampleQuery.restype = c_char_p
+        
+        '''
+        char* GetMessage(int channel_id, int last_message);
+        char* NewMessage(int user_id, int channel_id, char* message);
+        char* CreateUser(char* user_id, char* user_pw, char* user_username);
+        char* Login(char* user_id, char* user_pw);
+        char* DeleteUser(int user_uid, char* user_pw);
+        '''
+        self.dll.GetMessage.restype = c_char_p
+        self.dll.NewMessage.restype = c_char_p
+        self.dll.CreateUser.restype = c_char_p
+        self.dll.Login.restype = c_char_p
+        self.dll.DeleteUser.restype = c_char_p
         return
     
-    def login(self, u_id, u_pw):
+    def login(self, user_id, user_pw):
         '''
             입력
-                u_id (string) : 사용자 id
-                u_pw (string): 사용자 pw
+                user_id (string) : 사용자 id
+                user_pw (string): 사용자 pw
             출력 (tuple)
-                (로그인 성공 여부(bool), 자세한 메시지(string))
+                (
+                    로그인 성공 여부(bool), 
+                    로그인 성공시: uid(int) / 로그인 실패시: error code(int)
+                )
         '''
-        from hashlib import md5
-        from ctypes import c_char_p
         import json
+        import hashlib
+        from ctypes import c_char_p
         
-        u_pw = md5(u_pw.encode()).hexdigest()
-
-        res = json.loads(self.dll.DBSampleQuery(c_char_p(u_id.encode()), 
-                        c_char_p(u_pw.encode())).decode())
-
-        if list(res.keys()).count('error_code') != 0:
-            if res['error_code'] == 1:  # ID가 틀렸다.
-                return (False, "Wrong ID")
-            else:  # 알 수 없는 오류
-                print(res['error_code'])
-                return (False, "Unexpected Error")
-        elif len(list(res.keys())) == 1: # ID는 맞지만 PW가 틀렸다.
-            return (False, "Wrong Password")
+        if type(user_id).__name__ != 'str' or type(user_pw).__name__ != 'str':
+            raise TypeError
+        
+        user_id = c_char_p(user_id.encode('utf-8'))
+        user_pw = c_char_p(hashlib.sha256(user_pw.encode('utf-8')).hexdigest().encode('utf-8'))
+        
+        result = json.loads(self.dll.Login(user_id, user_pw).decode('utf-8'))
+        if result['result'] == 'success':
+            return (True, result['UID'])
         else:
-            return (True, {'UID' : list(res.keys())[0], 'USERNAME' : res[list(res.keys())[0]] })    
+            return (False, result['error_code'])
+        
+    def create_user(self, user_id, user_pw, user_username):
+        '''
+            입력
+                user_id (string) : 사용자 id
+                user_pw (string): 사용자 pw
+                user_username (string) : 사용자 닉네임
+            출력 (tuple)
+                (
+                    계정 생성 성공 여부(bool), 
+                    계정 생성 실패시 : error code(int)
+                )
+        '''
+        import json
+        import hashlib
+        from ctypes import c_char_p
+        
+        if type(user_id).__name__ != 'str' or type(user_pw).__name__ != 'str' or type(user_username).__name__ != 'str':
+            raise TypeError
+        
+        user_id = c_char_p(user_id.encode('utf-8'))
+        user_pw = c_char_p(hashlib.sha256(user_pw.encode('utf-8')).hexdigest().encode('utf-8'))
+        user_username = c_char_p(user_username.encode('utf-8'))
+        
+        result = json.loads(self.dll.CreateUser(user_id, user_pw, user_username).decode('utf-8'))
+        if result['result'] == 'success':
+            return (True)
+        else:
+            return (False, result['error_code'])   
+    
+    def delete_user(self, user_uid, user_pw):
+        '''
+            입력
+                user_uid (int) : 사용자 uid
+                user_pw (string): 사용자 pw
+            출력 (tuple)
+                (
+                    계정 삭제 성공 여부(bool), 
+                    계정 삭제 실패시 : error code(int)
+                )
+        '''
+        import json
+        import hashlib
+        from ctypes import c_char_p, c_int
+        
+        if type(user_uid).__name__ != 'int' or type(user_pw).__name__ != 'str':
+            raise TypeError
+        
+        user_id = c_int(user_id)
+        user_pw = c_char_p(hashlib.sha256(user_pw.encode('utf-8')).hexdigest().encode('utf-8'))
+        
+        result = json.loads(self.dll.CreateUser(user_id, user_pw, user_username).decode('utf-8'))
+        if result['result'] == 'success':
+            return (True)
+        else:
+            return (False, result['error_code']) 
+    
+    def get_message(self, channel_id, last_message_id):
+        '''
+            입력
+                channel_id (int) : 채널 id
+                last_message_id (int): 마지막으로 확인한 메시지 id
+            출력 (tuple)
+                (
+                    성공 여부(bool), 
+                    성공시: message count(int) : 메시지 개수,
+                          message(list) [
+                                            {
+                                                'username': 메시지를 보낸 사용자 닉네임 (string),
+                                                'id': 메시지 id (int),
+                                                'text': 메시지 본문 (string)
+                                            }, ...
+                                        ]
+                    / 실패시: error code(int)
+                )
+        '''
+        import json
+        from ctypes import c_int
+        
+        if type(channel_id).__name__ != 'int' or type(last_message_id).__name__ != 'int':
+            raise TypeError
+        
+        channel_id = c_int(channel_id)
+        last_message_id = c_int(last_message_id)
+        
+        result = json.loads(self.dll.GetMessage(channel_id, last_message_id).decode('utf-8'))
+        if result['result'] == 'fail':
+            return (False, result['error_code'])
+        else:
+            return (True, len(result['message']), result['message'])
+        pass    
+        
+    def new_message(self, user_uid, channel_id, message):
+        '''
+            입력
+                user_uid (int) : 사용자 uid
+                channel_id (int) : 채널 id
+                message (string): 보낸 메시지 본문
+            출력 (tuple)
+                (
+                    성공 여부(bool), 
+                    실패시: error code(int)
+                )
+        '''
+        import json
+        from ctypes import c_int, c_char_p
+        
+        if type(user_uid).__name__ != 'int' or type(channel_id).__name__ != 'int' or type(message).__name__ != 'str':
+            raise TypeError
+        
+        user_uid = c_int(user_uid)
+        channel_id = c_int(channel_id)
+        message = c_char_p(message.encode('utf-8'))
+        
+        result = json.loads(self.dll.NewMessage(user_uid, channel_id, message).decode('utf-8'))
+        if result['result'] == 'fail':
+            return (False, result['error_code'])
+        else:
+            return (True)
+        pass 

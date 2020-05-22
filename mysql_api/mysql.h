@@ -68,7 +68,7 @@ char* CreateUser(char* user_id, char* user_pw, char* user_username)
     catch (sql::SQLException &e) 
     {
         return_string = return_string + "\"result\": \"fail\", ";
-        return_string = return_string + "\"error code\": " + std::to_string(e.getErrorCode()) + "}";
+        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
     }
     
     // 사용한 Connector를 삭제한다. 
@@ -86,7 +86,7 @@ char* DeleteUser(int user_uid, char* user_pw)
 {
     /*
     DeleteUser : 사용자 삭제
-        char* user_uid : 생성할 사용자의 고유 ID
+        int user_uid : 생성할 사용자의 고유 ID
         char* user_pw : 생성할 사용자의 로그인 비밀번호
     
     반환값 : JSON
@@ -127,7 +127,7 @@ char* DeleteUser(int user_uid, char* user_pw)
     catch (sql::SQLException &e) 
     {
         return_string = return_string + "\"result\": \"fail\", ";
-        return_string = return_string + "\"error code\": " + std::to_string(e.getErrorCode()) + "}";
+        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
     }
     
     // 사용한 객체를 삭제한다. 
@@ -185,7 +185,7 @@ char* Login(char* user_id, char* user_pw)
     {
         res = NULL;
         return_string = return_string + "\"result\": \"fail\", ";
-        return_string = return_string + "\"error code\": " + std::to_string(e.getErrorCode()) + "}";
+        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
     }
     
     // 사용한 객체를 삭제한다. 
@@ -262,7 +262,7 @@ char* GetMessage(int channel_id, int last_message)
     {
         res = NULL;  // delete 할 때 버그가 있어서 추가
         return_string = return_string + "\"result\": \"fail\", ";
-        return_string = return_string + "\"error code\": " + std::to_string(e.getErrorCode()) + "}";
+        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
     }
     
     // 사용한 Connector를 삭제한다. 
@@ -331,7 +331,7 @@ char* NewMessage(int user_id, int channel_id, char* message)
     catch (sql::SQLException &e) 
     {
         return_string = return_string + "\"result\": \"fail\", ";
-        return_string = return_string + "\"error code\": " + std::to_string(e.getErrorCode()) + "}";
+        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
     }
     
     // 사용한 객체를 삭제한다. 
