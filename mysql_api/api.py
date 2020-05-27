@@ -51,9 +51,12 @@ class Database():
         
         result = json.loads(self.dll.Login(user_id, user_pw).decode('utf-8'))
         if result['result'] == 'success':
-            return (True, result['UID'])
+            return (True, result['UID'],)
         else:
-            return (False, result['error_code'])
+            '''
+                -1 : Wrong ID or PASSWORD
+            '''
+            return (False, result['error_code'],)
         
     def create_user(self, user_id, user_pw, user_username):
         '''
@@ -80,9 +83,13 @@ class Database():
         
         result = json.loads(self.dll.CreateUser(user_id, user_pw, user_username).decode('utf-8'))
         if result['result'] == 'success':
-            return (True)
+            return (True,)
         else:
-            return (False, result['error_code'])   
+            '''
+                -1 : LOGIN_ID 중복
+                -2 : USERNAME 중복
+            '''
+            return (False, result['error_code'],)   
     
     def delete_user(self, user_uid, user_pw):
         '''
@@ -107,9 +114,9 @@ class Database():
         
         result = json.loads(self.dll.CreateUser(user_id, user_pw, user_username).decode('utf-8'))
         if result['result'] == 'success':
-            return (True)
+            return (True,)
         else:
-            return (False, result['error_code']) 
+            return (False, result['error_code'],) 
     
     def get_message(self, channel_id, last_message_id):
         '''
@@ -141,9 +148,11 @@ class Database():
         
         result = json.loads(self.dll.GetMessage(channel_id, last_message_id).decode('utf-8'))
         if result['result'] == 'fail':
-            return (False, result['error_code'])
+            return (False, result['error_code'],)
+        elif 'message' not in result:
+            return(True, 0, [],)
         else:
-            return (True, len(result['message']), result['message'])
+            return (True, len(result['message']), result['message'],)
         pass    
         
     def new_message(self, user_uid, channel_id, message):
@@ -170,7 +179,6 @@ class Database():
         
         result = json.loads(self.dll.NewMessage(user_uid, channel_id, message).decode('utf-8'))
         if result['result'] == 'fail':
-            return (False, result['error_code'])
+            return (False, result['error_code'],)
         else:
-            return (True)
-        pass 
+            return (True,)

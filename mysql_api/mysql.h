@@ -67,8 +67,31 @@ char* CreateUser(char* user_id, char* user_pw, char* user_username)
     }
     catch (sql::SQLException &e) 
     {
-        return_string = return_string + "\"result\": \"fail\", ";
-        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
+        return_string = return_string + "\"result\": \"fail\", \"error_code\": ";
+        
+        if (e.getErrorCode() == 1062)  // duplicate entry
+        {
+            sql::ResultSet  *res;
+            
+            prep_stmt = con -> prepareStatement("SELECT * FROM `users` WHERE `LOGIN_ID` = ?");
+            prep_stmt -> setString(1, user_id);
+            res = prep_stmt -> executeQuery();
+            res -> beforeFirst();
+            res -> last();
+            if (res -> getRow() != 0)  // id가 중복
+            {
+                return_string = return_string + "-1 }";
+            }
+            else  // username이 중복
+            {
+                return_string = return_string + "-2 }";
+            }
+        }
+        else
+        {
+            return_string = return_string + std::to_string(e.getErrorCode()) + "}";
+            return_string = return_string + std::to_string(e.getErrorCode()) + "}";
+        }
     }
     
     // 사용한 Connector를 삭제한다. 
@@ -176,16 +199,27 @@ char* Login(char* user_id, char* user_pw)
         prep_stmt -> setString(1, user_id);
         prep_stmt -> setString(2, user_pw);
         res = prep_stmt -> executeQuery();
-        
+               
         res -> next();
-        return_string = return_string + "\"UID\": \"" + res->getString("UID") + "\", "; 
+        return_string = return_string + "\"UID\": " + res->getString("UID") + ", ";         
         return_string = return_string + "\"result\": \"success\"}";
     }
     catch (sql::SQLException &e) 
     {
+        return_string = return_string + "\"result\": \"fail\", \"error_code\": ";  
+        
+        res -> beforeFirst();
+        res -> last();
+        if (res -> getRow() == 0)
+        {
+            return_string = return_string + "-1 }";
+        }
+        else
+        {
+            return_string = return_string + std::to_string(e.getErrorCode()) + "}";
+        }
+        
         res = NULL;
-        return_string = return_string + "\"result\": \"fail\", ";
-        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
     }
     
     // 사용한 객체를 삭제한다. 
@@ -247,16 +281,22 @@ char* GetMessage(int channel_id, int last_message)
         prep_stmt -> setInt(2, channel_id);
         res = prep_stmt -> executeQuery();
         
-        return_string += "\"message\" : [";
-        while (res -> next())
+        res -> last();
+        if (res -> getRow() != 0)
         {
-            return_string += "{";
-            return_string += "\"username\": \"" + res->getString("USERNAME") + "\", "; 
-            return_string +=  "\"text\": \"" + res->getString("MESSAGE") + "\", ";
-            return_string +=  "\"id\": \"" + res->getString("MESSAGE_ID") + "\"},";
+            res -> beforeFirst();
+        
+            return_string += "\"message\" : [";
+            while (res -> next())
+            {
+                return_string += "{";
+                return_string += "\"username\": \"" + res->getString("USERNAME") + "\", "; 
+                return_string +=  "\"text\": \"" + res->getString("MESSAGE") + "\", ";
+                return_string +=  "\"id\": \"" + res->getString("MESSAGE_ID") + "\"},";
+            }
+            return_string = return_string.substr(0, return_string.length()-1) + "],";
         }
-        return_string = return_string.substr(0, return_string.length()-1);
-        return_string += "], \"result\": \"success\"}";
+        return_string += "\"result\": \"success\"}";
     }
     catch (sql::SQLException &e) 
     {
