@@ -1,0 +1,36 @@
+<html>
+    <head>
+        <script>
+            function submitform()
+            {
+                var xhr = new XMLHttpRequest();
+                form = document.getElementById("loginform");
+                
+                xhr.withCredentials = true;
+                xhr.open('POST', location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '') + '/login');
+                xhr.responseType = 'json';
+                xhr.send(JSON.stringify({"id": form.user_id.value, "pw": form.user_pw.value}));
+                xhr.onload = () => {
+                    var responseObj = xhr.response;
+                    console.log(responseObj);
+                    if (responseObj.result != 'success')
+                    {
+                        alert("Error");
+                    }
+                    else
+                    {
+                        alert(responseObj.message);
+                    }
+                } 
+            }
+        </script>
+    </head>
+    
+    <body>
+        <form onsubmit="submitform(); return false;" method="post" id="loginform">
+            <input type="text" value="guest" id="user_id">
+            <input type="text" value="guestpassword" id="user_pw">
+            <input type="submit" value="login">
+        </form>
+    </body>
+</html>

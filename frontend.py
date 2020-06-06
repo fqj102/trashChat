@@ -14,7 +14,9 @@ import json
     전역변수를 선언한다.
 '''
 LOGFILE = './log.log'
-WEB_CLIENT = '/web/client.html'
+
+WEB_CLIENT = '/client.html'
+WEB_CLIENT_AUTH = '/login.html'
 
 app = Flask(__name__)
 app.secret_key = os.urandom(16)
@@ -29,10 +31,12 @@ chat = Chat()
 '''
 
 message_id = 0
-chat.channels.append("1")
-chat.joined['1'] = []
-chat.channels.append("2")
-chat.joined['2'] = []
+chat.channels.append(1)
+chat.joined[1] = []
+chat.channels.append(2)
+chat.joined[2] = []
+chat.channels.append(3)
+chat.joined[3] = []
 
 '''
     endpoint를 설정한다.
@@ -44,6 +48,16 @@ chat.joined['2'] = []
     /channels/leave/<channel_id>
     /client
 '''
+
+
+@app.route('/client')
+def client():
+    from flask import render_template, request
+    
+    if request.cookies.get('token') not in chat.client_data:
+        return render_template(WEB_CLIENT_AUTH)
+    else:
+        return render_template(WEB_CLIENT)
 
 @app.route('/login', methods=['post'])
 def login():
@@ -57,7 +71,7 @@ def login():
     
     login_result = database.login(u_id, u_pw)
     if login_result[0] == False:
-        abort(403)
+        return make_response(json.dumps({'result': 'false', 'message': login_result[1]}))
     else:
         resp = make_response(json.dumps({'result': 'success', 'message': login_result[1]}))
         
@@ -66,8 +80,11 @@ def login():
             if list(chat.client_data.keys()).count(token) != 0:  # 키값 중복
                 continue
             else:    
-                chat.client_data[token] = {'id': login_result[1]['USERNAME'],
-                'uid': login_result[1]['UID'], 'login':datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')}
+                chat.client_data[token] = {'id': login_result[1], 'channels': login_result[3],
+                    'uid': login_result[2], 'login':datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')}
+                
+                for channel in login_result[3]:
+                    chat.joined[channel[0]].append(token)
                 break
             
         resp.set_cookie('token', token)
@@ -88,12 +105,6 @@ def logout():
     
     return "{\"result\": \"success\"}"
     
-
-@app.route('/client')
-def client():
-    from flask import render_template
-    return render_template(WEB_CLIENT)
-
 @app.route('/channels/list')
 def list_channels():
     return chat.channel_list()
@@ -118,7 +129,7 @@ def broadcast_chat(ws):
     from datetime import datetime
     import json
     
-    if request.cookies.get('token') is None:
+    if request.cookies.get('token') not in chat.client_data:
         abort(403)
         
     global message_id
@@ -150,3 +161,22 @@ def broadcast_chat(ws):
     except Exception as e:
         print(e)
 
+
+
+
+########DEV#######
+
+@app.route('/validate_token')
+def validate_token():
+    from flask import request
+    
+    token = request.cookies.get('token')
+    client_data = ""
+    client_socket = ""
+    
+    if request.cookies.get('token') in chat.client_data:
+        client_data = chat.client_data[token]
+    if request.cookies.get('token') in chat.clients:
+        client_socket = chat.clients[token]
+    
+    return {"token": token, "client_data": client_data, "client_socket": client_socket}

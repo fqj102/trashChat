@@ -9,6 +9,7 @@
 #include <mysql_connection.h>
 #include <mysql_driver.h>
 
+
 /* DB 접속에 필요한 정보를 정의 */
 const char* USERNAME = "test";
 const char* PASSWORD = "testpassword";
@@ -24,6 +25,7 @@ extern "C" // name mangling을 방지한다.
     /* 사용자 관련 함수 */
     char* CreateUser(char* user_id, char* user_pw, char* user_username);
     char* Login(char* user_id, char* user_pw);
+    char* GetUserInfo(int user_uid);
     char* DeleteUser(int user_uid, char* user_pw);
     
 }
@@ -302,6 +304,96 @@ char* GetMessage(int channel_id, int last_message)
     {
         res = NULL;  // delete 할 때 버그가 있어서 추가
         return_string = return_string + "\"result\": \"fail\", ";
+        return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
+    }
+    
+    // 사용한 Connector를 삭제한다. 
+    delete res;
+    delete prep_stmt;
+    delete con;
+    
+    // 반환할 값을 준비한다. (string을 char* 형식으로 전환. Ctypes는 std::string 자료형을 지원하지 않는다.)   
+    char *cstr = new char[return_string.length() + 1];
+    strcpy(cstr, return_string.c_str());
+    
+    return (char*) cstr;
+}
+
+char* GetUserInfo(int user_uid)
+{
+    /*
+    GetUserInfo : 사용자 정보를 받아온다
+        int user_uid
+        
+    반환값 : JSON
+        result : 질의 결과를 나타낸다. (필수)
+        - success / fail 
+        error_code : 에러가 발생한 경우 포함된다. 
+        - int : MySQL 에러 코드를 나타낸다.
+        username : UID가 존재하면 반환된다.
+        - string : 사용자의 닉네임
+        active : UID가 존재하면 반환된다. 
+        - bool : 활성화 여부
+        channels : UID가 존재하면 반환된다.
+        - list[
+            int channel_id : CHANNEL_ID
+            string channel_name : trashchat.channel_settings.CHANNELNAME
+            int last_message_id  : 해당 채널에서 마지막으로 확인한 MESSAGE_ID 
+          ] : 사용자가 포함되어 있는 채널별로 반복
+    */
+    
+    // connector에 연결할 때 쓰는 객체를 선언한다. 
+    sql::ResultSet  *res;
+    sql::Connection *con;
+    sql::mysql::MySQL_Driver *driver;   
+    sql::PreparedStatement  *prep_stmt;
+    
+    // MySQL에 연결한다. 
+    driver = sql::mysql::get_mysql_driver_instance();
+    con = driver->connect(DBADDR, USERNAME, PASSWORD);
+    con->setSchema(DBNAME);
+    
+    std::string return_string = "{"; 
+    try
+    {
+        // 1. users.USERNAME, users.ACTIVE
+        std::string query_string = "SELECT USERNAME, ACTIVE FROM `users` WHERE UID = ?";
+        prep_stmt = con -> prepareStatement(query_string);
+        prep_stmt -> setInt(1, user_uid);
+        res = prep_stmt -> executeQuery();
+        res -> next();
+        
+        return_string += "\"username\": \"" + res -> getString("USERNAME") + "\", ";
+        return_string += "\"active\": " + res -> getString("ACTIVE") + ", ";
+        return_string += "\"result\": \"success\", \"channels\": [";    
+        
+        // 2. CHANNEL_ID, CHANNELNAME, LAST_MESSAGE_ID
+        query_string = "SELECT CU.CHANNEL_ID, CU.LAST_MESSAGE_ID, CS.CHANNELNAME "
+        "FROM `channel_users` AS CU JOIN `channel_settings` AS CS " 
+        "ON CU.UID = ? AND CS.CHANNEL_ID = CU.CHANNEL_ID;";
+        prep_stmt = con -> prepareStatement(query_string);
+        prep_stmt -> setInt(1, user_uid);
+        res = prep_stmt -> executeQuery();
+        
+        res -> last();
+        if (res -> getRow() != 0)
+        {
+            res -> beforeFirst();
+            
+            while (res -> next())
+            {
+                return_string += "[" + res->getString("CHANNEL_ID") + ", "; 
+                return_string += "\"" + res->getString("CHANNELNAME") + "\", "; 
+                return_string += "" + res->getString("LAST_MESSAGE_ID") + "],"; 
+            }
+            return_string = return_string.substr(0, return_string.length()-1);
+        }
+        return_string += "]}";
+    }
+    catch (sql::SQLException &e) 
+    {
+        res = NULL;  // delete 할 때 버그가 있어서 추가
+        return_string = "{\"result\": \"fail\", ";
         return_string = return_string + "\"error_code\": " + std::to_string(e.getErrorCode()) + "}";
     }
     

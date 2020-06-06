@@ -1,6 +1,6 @@
 <html>
     <head>
-	<script src="{{ url_for('static', filename='socket.js') }}"> </script>
+        <script src="{{ url_for('static', filename='socket.js') }}"> </script>
         <style>
             div{
                 height: auto;
@@ -12,9 +12,6 @@
               float: left;
             }
         </style>
-    </head>
-    
-    <body>
         <script>
             connection = new Connection();
             function sendMessage()
@@ -55,6 +52,9 @@
                 }   
             }        
         </script>
+    </head>
+    
+    <body>
         <div class="channel">
             <div class="horizontal">
                 <h2> Joined channel </h2>
@@ -77,8 +77,8 @@
             
             <div class="horizontal">
                 <form onsubmit="login(); return false;" id="loginform">
-                    <input type="text" id="user_id" value="test">
-                    <input type="password" id="user_pw" value="testpassword">
+                    <input type="text" id="user_id" value="guest">
+                    <input type="password" id="user_pw" value="guestpassword">
                     <input type="submit" id="button" value="login">
                 </form>
             </div>

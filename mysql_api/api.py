@@ -19,12 +19,15 @@ class Database():
         char* NewMessage(int user_id, int channel_id, char* message);
         char* CreateUser(char* user_id, char* user_pw, char* user_username);
         char* Login(char* user_id, char* user_pw);
+        char* GetUserInfo(int user_uid);
         char* DeleteUser(int user_uid, char* user_pw);
         '''
+        
         self.dll.GetMessage.restype = c_char_p
         self.dll.NewMessage.restype = c_char_p
         self.dll.CreateUser.restype = c_char_p
         self.dll.Login.restype = c_char_p
+        self.dll.GetUserInfo.restype = c_char_p
         self.dll.DeleteUser.restype = c_char_p
         return
     
@@ -36,7 +39,9 @@ class Database():
             출력 (tuple)
                 (
                     로그인 성공 여부(bool), 
-                    로그인 성공시: uid(int) / 로그인 실패시: error code(int)
+                    로그인 성공시: uid(int), username(str), 
+                                channels(list) [channel_id (int), channel_name (str), last_message_id(int)]
+                    / 로그인 실패시: error code(int)
                 )
         '''
         import json
@@ -51,10 +56,15 @@ class Database():
         
         result = json.loads(self.dll.Login(user_id, user_pw).decode('utf-8'))
         if result['result'] == 'success':
-            return (True, result['UID'],)
+            user_infos = self.get_user_info(result['UID'])
+            if user_infos[2] is not True:
+                return (False, -2,)
+            else:
+                return (True, result['UID'], user_infos[1], user_infos[3],)
         else:
             '''
                 -1 : Wrong ID or PASSWORD
+                -2 : Deactivated account
             '''
             return (False, result['error_code'],)
         
@@ -109,10 +119,10 @@ class Database():
         if type(user_uid).__name__ != 'int' or type(user_pw).__name__ != 'str':
             raise TypeError
         
-        user_id = c_int(user_id)
+        user_uid = c_int(user_uid)
         user_pw = c_char_p(hashlib.sha256(user_pw.encode('utf-8')).hexdigest().encode('utf-8'))
         
-        result = json.loads(self.dll.CreateUser(user_id, user_pw, user_username).decode('utf-8'))
+        result = json.loads(self.dll.DeleteUser(user_uid, user_pw).decode('utf-8'))
         if result['result'] == 'success':
             return (True,)
         else:
@@ -153,8 +163,42 @@ class Database():
             return(True, 0, [],)
         else:
             return (True, len(result['message']), result['message'],)
-        pass    
+        pass        
         
+    def get_user_info(self, user_uid):
+        '''
+            입력
+                user_uid (int) : 사용자 고유 ID
+            출력 (tuple)
+                (
+                    성공 여부(bool), 
+                    성공시: username (str) : 사용자 닉네임,
+                          active (bool) : 사용자 활성화 여부,
+                          channels(list) [
+                                            [
+                                                int channel_id,
+                                                string channel_name : trashchat.channel_settings.CHANNELNAME
+                                                int last_message_id  : 해당 채널에서 마지막으로 확인한 MESSAGE_ID 
+                                            ], ...
+                                        ]
+                    / 실패시: error code(int)
+                )
+        '''
+        import json
+        from ctypes import c_int
+        
+        if type(user_uid).__name__ != 'int':
+            raise TypeError
+        
+        user_uid = c_int(user_uid)
+        
+        result = json.loads(self.dll.GetUserInfo(user_uid).decode('utf-8'))
+        if result['result'] == 'fail':
+            return (False, result['error_code'],)
+        else:
+            return (True, result['username'], 
+                    True if result['active'] != 0 else False, result['channels'],)    
+                    
     def new_message(self, user_uid, channel_id, message):
         '''
             입력
